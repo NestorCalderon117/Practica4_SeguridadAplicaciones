@@ -61,3 +61,5 @@ postgres-data/
 # Environment variables
 .env
 .env.example
+
+/generated/prisma
