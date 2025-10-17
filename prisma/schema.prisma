@@ -25,7 +25,7 @@ model Usuario {
   correo           String   @unique
   contraseniaHash  String
   rol              Rol     @default(CLIENTE)
-  estaActivo       Boolean  @default(true)
+  estaActivo       Boolean  @default(false)
   intentosFallidos Int      @default(0)
   bloqueadoHasta   DateTime?
   creado           DateTime @default(now())
