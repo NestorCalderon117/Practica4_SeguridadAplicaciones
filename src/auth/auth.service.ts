@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, HttpStatus, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
 import { UsersService } from '../users/users.service';
@@ -21,7 +21,8 @@ export class AuthService {
 			correo: data.correo,
 			contraseniaHash: hash,
 		});
-		return { id: usuario.id, correo: usuario.correo };
+		const nombreCompleto = `${usuario.nombre} ${usuario.apellido}`;
+		return { usuario: { nombre: usuario.nombre, apellido: usuario.apellido, correo: usuario.correo, rol: usuario.rol, nombreCompleto }, statusCode: HttpStatus.CREATED };
 	}
 
 	private isLocked(now: Date, bloqueadoHasta: Date | null | undefined): boolean {
@@ -54,7 +55,7 @@ export class AuthService {
 		const payload = { sub: usuario.id, rol: usuario.rol };
 		const accessToken = await this.jwtService.signAsync(payload);
 		const nombreCompleto = `${usuario.nombre} ${usuario.apellido}`;
-		return { accessToken, usuario: { nombre: usuario.nombre, apellido: usuario.apellido, correo: usuario.correo, rol: usuario.rol, nombreCompleto } };
+		return { accessToken, usuario: { nombre: usuario.nombre, apellido: usuario.apellido, correo: usuario.correo, rol: usuario.rol, nombreCompleto }, statusCode: HttpStatus.OK };
 	}
 }
 
