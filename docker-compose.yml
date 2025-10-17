@@ -1,0 +1,19 @@
+services:
+  postgres:
+    image: postgres:15-bookworm
+    container_name: practica4_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "${DB_DOCKER_PORT}:5432"
+    volumes:
+      - ./postgres-data:/var/lib/postgresql/data
+    networks:
+      - practica4
+
+networks:
+  practica4:
+    driver: bridge
