@@ -63,3 +63,5 @@ postgres-data/
 .env.example
 
 /generated/prisma
+
+docsapp/
