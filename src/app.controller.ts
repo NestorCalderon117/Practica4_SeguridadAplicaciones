@@ -1,4 +1,5 @@
 import { Controller, Get } from '@nestjs/common';
+// removed Throttle import after reverting temporary limit
 import { AppService } from './app.service';
 
 @Controller()
