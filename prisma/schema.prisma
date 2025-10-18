@@ -34,4 +34,67 @@ model Usuario {
   codigoRecuperacionVerificado Boolean @default(false)
   creado                    DateTime  @default(now())
   actualizado               DateTime  @updatedAt
+
+  // Relaciones para el módulo Mi Cuenta
+  sesiones                  SesionUsuario[]
+  historialContrasenias     HistorialContrasenia[]
+  historialActividad        HistorialActividad[]
+  dispositivosMfa           DispositivoMfa[]
+}
+
+model SesionUsuario {
+  id              String   @id @default(uuid())
+  usuarioId       String
+  deviceId        String   @unique
+  userAgent       String?
+  ipAddress       String?
+  ubicacion       String?
+  ultimaActividad DateTime @default(now())
+  expiraEn        DateTime
+  activa          Boolean  @default(true)
+  creada          DateTime @default(now())
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@map("sesiones_usuario")
+}
+
+model HistorialContrasenia {
+  id            String   @id @default(uuid())
+  usuarioId     String
+  contraseniaHash String
+  fechaCreacion DateTime @default(now())
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@map("historial_contrasenias")
+}
+
+model HistorialActividad {
+  id        String   @id @default(uuid())
+  usuarioId String
+  tipo      String   // LOGIN, MFA_SUCCESS, MFA_FAILED, PROFILE_UPDATE, PASSWORD_CHANGE, EMAIL_CHANGE, etc.
+  descripcion String?
+  ipAddress String?
+  userAgent String?
+  metadata  Json?
+  fecha     DateTime @default(now())
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@map("historial_actividad")
+}
+
+model DispositivoMfa {
+  id            String   @id @default(uuid())
+  usuarioId     String
+  nombre        String   // Nombre descriptivo del dispositivo
+  tipo          String   // EMAIL, SMS, TOTP, etc.
+  activo        Boolean  @default(true)
+  ultimoUso     DateTime?
+  creado        DateTime @default(now())
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@map("dispositivos_mfa")
 }

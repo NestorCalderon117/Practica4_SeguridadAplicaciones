@@ -2,6 +2,7 @@ import { BadRequestException, ForbiddenException, HttpStatus, Injectable, Unauth
 import { JwtService } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
 import { UsersService } from '../users/users.service';
+import { PrismaService } from '../prisma/prisma.service';
 import * as brevo from '@getbrevo/brevo';
 import { ValidateMfaDto } from './DTOs/validate-mfa.dto';
 import { ForgotPasswordDto } from './DTOs/forgot-password.dto';
@@ -16,6 +17,7 @@ export class AuthService {
 	constructor(
 		private readonly usersService: UsersService,
 		private readonly jwtService: JwtService,
+		private readonly prisma: PrismaService,
 	) {
 		const apiKey = process.env.BREVO_API_KEY!;
 		this.apiInstance = new brevo.TransactionalEmailsApi();
@@ -129,7 +131,7 @@ export class AuthService {
 		}
 	}
 
-	async validateMfaToken(validateMfaDto: ValidateMfaDto) {
+	async validateMfaToken(validateMfaDto: ValidateMfaDto, userAgent?: string, ipAddress?: string) {
 		const { correo, mfaToken } = validateMfaDto;
 
 		const usuario = await this.usersService.findByCorreo(correo);
@@ -141,6 +143,15 @@ export class AuthService {
 			!usuario.mfaTokenExpiraEn ||
 			new Date() > new Date(usuario.mfaTokenExpiraEn)
 		) {
+			// Registrar intento fallido de MFA solo si el usuario existe
+			if (usuario?.id) {
+				await this.registrarActividad(usuario.id, 'MFA_FAILED', 'Código MFA inválido o expirado', {
+					correo,
+					ipAddress,
+					userAgent,
+				});
+			}
+			
 			throw new BadRequestException(
 				'Código de verificación inválido o expirado',
 			);
@@ -154,6 +165,17 @@ export class AuthService {
 		const accessToken = await this.jwtService.signAsync(payload);
 		const nombreCompleto = `${usuario.nombre} ${usuario.apellido}`;
 
+		// Crear sesión de usuario
+		const deviceId = this.generateDeviceId(userAgent, ipAddress);
+		await this.crearSesionUsuario(usuario.id, deviceId, userAgent, ipAddress);
+
+		// Registrar actividad exitosa
+		await this.registrarActividad(usuario.id, 'MFA_SUCCESS', 'Login exitoso con MFA', {
+			deviceId,
+			ipAddress,
+			userAgent,
+		});
+
 		return { 
 			accessToken,
 			usuario: { 
@@ -163,6 +185,7 @@ export class AuthService {
 				rol: usuario.rol, 
 				nombreCompleto 
 			},
+			deviceId,
 			statusCode: HttpStatus.OK 
 		};
 	}
@@ -319,6 +342,70 @@ export class AuthService {
 			this.logger.error(`Error enviando el código de recuperación a ${email}: ${error.message}`);
 			throw new BadRequestException('Error enviando el código de recuperación');
 		}
+	}
+
+	// Métodos auxiliares para integración con Mi Cuenta
+	private generateDeviceId(userAgent?: string, ipAddress?: string): string {
+		const timestamp = Date.now().toString();
+		const random = Math.random().toString(36).substring(2);
+		return `${timestamp}-${random}`;
+	}
+
+	private async crearSesionUsuario(usuarioId: string, deviceId: string, userAgent?: string, ipAddress?: string) {
+		const expiraEn = new Date();
+		expiraEn.setDate(expiraEn.getDate() + 30); // 30 días
+
+		// Verificar si ya existe una sesión activa con el mismo deviceId
+		const sesionExistente = await this.prisma.sesionUsuario.findUnique({
+			where: { deviceId },
+		});
+
+		if (sesionExistente && sesionExistente.activa && sesionExistente.expiraEn > new Date()) {
+			// Actualizar sesión existente
+			await this.prisma.sesionUsuario.update({
+				where: { deviceId },
+				data: {
+					usuarioId,
+					userAgent,
+					ipAddress,
+					ultimaActividad: new Date(),
+					expiraEn,
+				},
+			});
+		} else {
+			// Crear nueva sesión
+			await this.prisma.sesionUsuario.create({
+				data: {
+					usuarioId,
+					deviceId,
+					userAgent,
+					ipAddress,
+					expiraEn,
+				},
+			});
+		}
+	}
+
+	private async registrarActividad(
+		usuarioId: string, 
+		tipo: string, 
+		descripcion: string, 
+		metadata?: any,
+		ipAddress?: string,
+		userAgent?: string
+	) {
+		if (!usuarioId) return; // No registrar si no hay usuario
+
+		await this.prisma.historialActividad.create({
+			data: {
+				usuarioId,
+				tipo,
+				descripcion,
+				metadata,
+				ipAddress,
+				userAgent,
+			},
+		});
 	}
 }
 
