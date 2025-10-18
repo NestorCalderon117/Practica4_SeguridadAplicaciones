@@ -3,7 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateTicketDto } from './DTOs/create-ticket.dto';
 import { UpdateTicketDto } from './DTOs/update-ticket.dto';
 import { TicketQueryDto } from './DTOs/ticket-query.dto';
-import { CategoriaTicket, EstadoTicket } from '@prisma/client';
+import { CategoriaTicket, EstadoTicket, TipoEventoAuditoria } from '@prisma/client';
 
 @Injectable()
 export class TicketsService {
@@ -31,6 +31,13 @@ export class TicketsService {
           },
         },
       },
+    });
+
+    // Registrar actividad
+    await this.registrarActividad(userId, TipoEventoAuditoria.TICKET_CREATED, 'Ticket creado', {
+      ticketId: ticket.id,
+      categoria: ticket.categoria,
+      prioridad: ticket.prioridad,
     });
 
     return {
@@ -172,6 +179,14 @@ export class TicketsService {
       },
     });
 
+    // Registrar actividad
+    await this.registrarActividad(userId, TipoEventoAuditoria.TICKET_UPDATED, 'Ticket actualizado', {
+      ticketId: ticket.id,
+      cambios: updateTicketDto,
+      estadoAnterior: existingTicket.estado,
+      estadoNuevo: ticket.estado,
+    });
+
     return {
       ticket,
       statusCode: 200,
@@ -200,6 +215,14 @@ export class TicketsService {
 
     await this.prisma.ticket.delete({
       where: { id: ticketId },
+    });
+
+    // Registrar actividad
+    await this.registrarActividad(userId, TipoEventoAuditoria.TICKET_DELETED, 'Ticket eliminado', {
+      ticketId,
+      titulo: existingTicket.titulo,
+      categoria: existingTicket.categoria,
+      estado: existingTicket.estado,
     });
 
     return {
@@ -260,5 +283,22 @@ export class TicketsService {
         `No se puede cambiar el estado de ${currentState} a ${newState}. Transiciones válidas: ${validTransitions[currentState].join(', ')}`
       );
     }
+  }
+
+  // Método auxiliar para registrar actividad
+  private async registrarActividad(
+    usuarioId: string,
+    tipo: TipoEventoAuditoria,
+    descripcion: string,
+    metadata?: any
+  ) {
+    await this.prisma.historialActividad.create({
+      data: {
+        usuarioId,
+        tipo,
+        descripcion,
+        metadata,
+      },
+    });
   }
 }
