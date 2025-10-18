@@ -1,33 +1,12 @@
-import { Body, Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
+import { Body, Controller, HttpCode, HttpStatus, Post, Param, Request } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
-import { IsEmail, IsNotEmpty, IsString, MinLength } from 'class-validator';
-
-class RegisterDto {
-	@IsString()
-	@IsNotEmpty()
-	nombre!: string;
-
-	@IsString()
-	@IsNotEmpty()
-	apellido!: string;
-
-	@IsEmail()
-	correo!: string;
-
-	@IsString()
-	@MinLength(8)
-	contrasenia!: string;
-}
-
-class LoginDto {
-	@IsEmail()
-	correo!: string;
-
-	@IsString()
-	@MinLength(8)
-	contrasenia!: string;
-}
+import { RegisterDto } from './DTOs/register.dto';
+import { LoginDto } from './DTOs/login.dto';
+import { ValidateMfaDto } from './DTOs/validate-mfa.dto';
+import { ForgotPasswordDto } from './DTOs/forgot-password.dto';
+import { VerifyResetCodeDto } from './DTOs/verify-reset-code.dto';
+import { ResetPasswordDto } from './DTOs/reset-password.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -43,6 +22,43 @@ export class AuthController {
     @Post('login')
 	async login(@Body() body: LoginDto) {
 		return this.authService.login(body);
+	}
+
+	@HttpCode(HttpStatus.OK)
+	@Throttle({ default: { limit: 3, ttl: 60 } })
+	@Post('validate-mfa')
+	async validateMfa(@Body() body: ValidateMfaDto, @Request() req) {
+		const userAgent = req.headers['user-agent'];
+		const ipAddress = req.ip || req.connection.remoteAddress || req.socket.remoteAddress;
+		return this.authService.validateMfaToken(body, userAgent, ipAddress);
+	}
+
+	@HttpCode(HttpStatus.OK)
+	@Throttle({ default: { limit: 3, ttl: 300 } }) // 3 intentos cada 5 minutos
+	@Post('resend-mfa/:correo')
+	async resendMfa(@Param('correo') correo: string) {
+		return this.authService.resendMfaToken(correo);
+	}
+
+	@HttpCode(HttpStatus.OK)
+	@Throttle({ default: { limit: 3, ttl: 300 } }) // 3 intentos cada 5 minutos
+	@Post('forgot-password')
+	async forgotPassword(@Body() body: ForgotPasswordDto) {
+		return this.authService.forgotPassword(body);
+	}
+
+	@HttpCode(HttpStatus.OK)
+	@Throttle({ default: { limit: 3, ttl: 300 } }) // 3 intentos cada 5 minutos
+	@Post('verify-reset-code')
+	async verifyResetCode(@Body() body: VerifyResetCodeDto) {
+		return this.authService.verifyResetCode(body);
+	}
+
+	@HttpCode(HttpStatus.OK)
+	@Throttle({ default: { limit: 3, ttl: 300 } }) // 3 intentos cada 5 minutos
+	@Post('reset-password/:correo')
+	async resetPassword(@Param('correo') correo: string, @Body() body: ResetPasswordDto) {
+		return this.authService.resetPassword(body, correo);
 	}
 }
 
