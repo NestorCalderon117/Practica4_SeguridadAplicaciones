@@ -1,4 +1,4 @@
-import { Body, Controller, HttpCode, HttpStatus, Post, Param } from '@nestjs/common';
+import { Body, Controller, HttpCode, HttpStatus, Post, Param, Request } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './DTOs/register.dto';
@@ -27,8 +27,10 @@ export class AuthController {
 	@HttpCode(HttpStatus.OK)
 	@Throttle({ default: { limit: 3, ttl: 60 } })
 	@Post('validate-mfa')
-	async validateMfa(@Body() body: ValidateMfaDto) {
-		return this.authService.validateMfaToken(body);
+	async validateMfa(@Body() body: ValidateMfaDto, @Request() req) {
+		const userAgent = req.headers['user-agent'];
+		const ipAddress = req.ip || req.connection.remoteAddress || req.socket.remoteAddress;
+		return this.authService.validateMfaToken(body, userAgent, ipAddress);
 	}
 
 	@HttpCode(HttpStatus.OK)
