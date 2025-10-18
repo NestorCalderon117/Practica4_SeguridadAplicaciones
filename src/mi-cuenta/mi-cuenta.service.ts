@@ -1,5 +1,6 @@
 import { Injectable, BadRequestException, NotFoundException, ConflictException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { TipoEventoAuditoria } from '@prisma/client';
 import * as argon2 from 'argon2';
 import * as brevo from '@getbrevo/brevo';
 import { UpdateProfileDto } from './DTOs/update-profile.dto';
@@ -92,7 +93,7 @@ export class MiCuentaService {
     });
 
     // Registrar actividad
-    await this.registrarActividad(userId, 'PROFILE_UPDATE', 'Perfil actualizado', {
+    await this.registrarActividad(userId, TipoEventoAuditoria.PROFILE_UPDATED, 'Perfil actualizado', {
       cambios: {
         nombre: { anterior: usuarioExistente.nombre, nuevo: nombre },
         apellido: { anterior: usuarioExistente.apellido, nuevo: apellido },
@@ -176,7 +177,7 @@ export class MiCuentaService {
     });
 
     // Registrar actividad
-    await this.registrarActividad(userId, 'PASSWORD_CHANGE', 'Contraseña cambiada exitosamente');
+    await this.registrarActividad(userId, TipoEventoAuditoria.PASSWORD_CHANGED, 'Contraseña cambiada exitosamente');
 
     return {
       mensaje: 'Contraseña actualizada exitosamente',
@@ -208,7 +209,7 @@ export class MiCuentaService {
     });
 
     // Registrar actividad
-    await this.registrarActividad(userId, 'MFA_REENROLL', `Dispositivo MFA registrado: ${nombreDispositivo}`, {
+    await this.registrarActividad(userId, TipoEventoAuditoria.MFA_REENROLL, `Dispositivo MFA registrado: ${nombreDispositivo}`, {
       dispositivoId: dispositivo.id,
       tipo: tipoDispositivo,
     });
@@ -289,7 +290,7 @@ export class MiCuentaService {
     });
 
     // Registrar actividad
-    await this.registrarActividad(userId, 'SESSION_TERMINATED', 'Sesión terminada manualmente', {
+    await this.registrarActividad(userId, TipoEventoAuditoria.SESSION_TERMINATED, 'Sesión terminada manualmente', {
       sessionId,
       deviceId: sesion.deviceId,
     });
@@ -312,7 +313,7 @@ export class MiCuentaService {
     });
 
     // Registrar actividad
-    await this.registrarActividad(userId, 'ALL_SESSIONS_TERMINATED', 'Todas las sesiones excepto la actual fueron terminadas');
+    await this.registrarActividad(userId, TipoEventoAuditoria.ALL_SESSIONS_TERMINATED, 'Todas las sesiones excepto la actual fueron terminadas');
 
     return {
       mensaje: 'Todas las demás sesiones han sido terminadas',
@@ -373,7 +374,7 @@ export class MiCuentaService {
     });
 
     // Registrar actividad
-    await this.registrarActividad(userId, 'EMAIL_VERIFIED', 'Correo verificado exitosamente');
+    await this.registrarActividad(userId, TipoEventoAuditoria.EMAIL_VERIFIED, 'Correo verificado exitosamente');
 
     return {
       mensaje: 'Correo verificado exitosamente',
@@ -432,7 +433,7 @@ export class MiCuentaService {
 
   private async registrarActividad(
     userId: string, 
-    tipo: string, 
+    tipo: TipoEventoAuditoria, 
     descripcion: string, 
     metadata?: any,
     ipAddress?: string,

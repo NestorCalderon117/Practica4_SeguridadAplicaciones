@@ -3,6 +3,7 @@ import { JwtService } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
 import { UsersService } from '../users/users.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { TipoEventoAuditoria } from '@prisma/client';
 import * as brevo from '@getbrevo/brevo';
 import { ValidateMfaDto } from './DTOs/validate-mfa.dto';
 import { ForgotPasswordDto } from './DTOs/forgot-password.dto';
@@ -145,7 +146,7 @@ export class AuthService {
 		) {
 			// Registrar intento fallido de MFA solo si el usuario existe
 			if (usuario?.id) {
-				await this.registrarActividad(usuario.id, 'MFA_FAILED', 'Código MFA inválido o expirado', {
+				await this.registrarActividad(usuario.id, TipoEventoAuditoria.MFA_FAILED, 'Código MFA inválido o expirado', {
 					correo,
 					ipAddress,
 					userAgent,
@@ -170,7 +171,7 @@ export class AuthService {
 		await this.crearSesionUsuario(usuario.id, deviceId, userAgent, ipAddress);
 
 		// Registrar actividad exitosa
-		await this.registrarActividad(usuario.id, 'MFA_SUCCESS', 'Login exitoso con MFA', {
+		await this.registrarActividad(usuario.id, TipoEventoAuditoria.MFA_SUCCESS, 'Login exitoso con MFA', {
 			deviceId,
 			ipAddress,
 			userAgent,
@@ -388,7 +389,7 @@ export class AuthService {
 
 	private async registrarActividad(
 		usuarioId: string, 
-		tipo: string, 
+		tipo: TipoEventoAuditoria, 
 		descripcion: string, 
 		metadata?: any,
 		ipAddress?: string,

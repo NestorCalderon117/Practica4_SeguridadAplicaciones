@@ -8,6 +8,7 @@ import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
 import { MiCuentaModule } from './mi-cuenta/mi-cuenta.module';
 import { TicketsModule } from './tickets/tickets.module';
+import { AdministracionModule } from './administracion/administracion.module';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 
 @Module({
@@ -23,6 +24,7 @@ import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
     AuthModule,
     MiCuentaModule,
     TicketsModule,
+    AdministracionModule,
   ],
   controllers: [AppController],
   providers: [
