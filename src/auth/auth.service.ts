@@ -4,6 +4,9 @@ import * as argon2 from 'argon2';
 import { UsersService } from '../users/users.service';
 import * as brevo from '@getbrevo/brevo';
 import { ValidateMfaDto } from './DTOs/validate-mfa.dto';
+import { ForgotPasswordDto } from './DTOs/forgot-password.dto';
+import { VerifyResetCodeDto } from './DTOs/verify-reset-code.dto';
+import { ResetPasswordDto } from './DTOs/reset-password.dto';
 
 @Injectable()
 export class AuthService {
@@ -181,6 +184,141 @@ export class AuthService {
 			message: 'Se ha enviado un nuevo código de verificación a tu correo.',
 			statusCode: HttpStatus.OK 
 		};
+	}
+
+	async forgotPassword(forgotPasswordDto: ForgotPasswordDto) {
+		const { correo } = forgotPasswordDto;
+
+		const usuario = await this.usersService.findByCorreo(correo);
+		
+		if (!usuario) {
+			throw new BadRequestException('No existe un usuario con ese correo');
+		}
+
+		if (!usuario.estaActivo) {
+			throw new BadRequestException('El usuario no está activo');
+		}
+
+		// Generar y enviar código de recuperación
+		await this.generatePasswordResetToken(usuario);
+
+		return {
+			message: 'Se ha enviado un código de recuperación a tu correo.',
+			statusCode: HttpStatus.OK
+		};
+	}
+
+	async verifyResetCode(verifyResetCodeDto: VerifyResetCodeDto) {
+		const { correo, codigoVerificacion } = verifyResetCodeDto;
+
+		const usuario = await this.usersService.findByCorreo(correo);
+
+		if (!usuario) {
+			throw new BadRequestException('Usuario no encontrado');
+		}
+
+		if (!usuario.estaActivo) {
+			throw new BadRequestException('El usuario no está activo');
+		}
+
+		// Verificar código de recuperación
+		if (
+			!usuario.mfaToken ||
+			usuario.mfaToken !== codigoVerificacion ||
+			!usuario.mfaTokenExpiraEn ||
+			new Date() > new Date(usuario.mfaTokenExpiraEn)
+		) {
+			throw new BadRequestException(
+				'Código de recuperación inválido o expirado',
+			);
+		}
+
+		// Marcar código como verificado (no limpiar token aún)
+		await this.usersService.markResetCodeAsVerified(usuario.id);
+
+		return {
+			message: 'Código de recuperación verificado correctamente',
+			statusCode: HttpStatus.OK
+		};
+	}
+
+	async resetPassword(resetPasswordDto: ResetPasswordDto, correo: string) {
+		const { nuevaContrasenia } = resetPasswordDto;
+
+		const usuario = await this.usersService.findByCorreo(correo);
+
+		if (!usuario) {
+			throw new BadRequestException('Usuario no encontrado');
+		}
+
+		if (!usuario.estaActivo) {
+			throw new BadRequestException('El usuario no está activo');
+		}
+
+		// Verificar que el código de recuperación ya fue verificado
+		if (!usuario.codigoRecuperacionVerificado) {
+			throw new BadRequestException('Debe verificar el código de recuperación primero');
+		}
+
+		// Validar nueva contraseña
+		if (!nuevaContrasenia || nuevaContrasenia.length < 8) {
+			throw new BadRequestException('La nueva contraseña debe tener al menos 8 caracteres');
+		}
+
+		// Hashear nueva contraseña
+		const hash = await argon2.hash(nuevaContrasenia, { type: argon2.argon2id });
+
+		// Actualizar contraseña y limpiar tokens
+		await this.usersService.updatePassword(usuario.id, hash);
+
+		return {
+			message: 'Contraseña actualizada exitosamente',
+			statusCode: HttpStatus.OK
+		};
+	}
+
+	private async generatePasswordResetToken(usuario: any) {
+		const resetToken = Math.floor(100000 + Math.random() * 900000).toString(); // codigo de 6 dígitos
+		const resetTokenExpiraEn = new Date();
+		resetTokenExpiraEn.setMinutes(resetTokenExpiraEn.getMinutes() + 10); // 10 minutos
+
+		await this.usersService.updateMfaToken(usuario.id, resetToken, resetTokenExpiraEn);
+
+		return await this.sendPasswordResetToken(usuario.correo, resetToken);
+	}
+
+	private async sendPasswordResetToken(email: string, resetToken: string) {
+		const sendSmtpEmail = new brevo.SendSmtpEmail();
+		
+		sendSmtpEmail.subject = 'Código de Recuperación de Contraseña';
+		sendSmtpEmail.htmlContent = `
+			<html>
+				<body>
+					<h2>Recuperación de Contraseña</h2>
+					<p>Tu código de recuperación es: <strong>${resetToken}</strong></p>
+					<p>Este código expira en 10 minutos.</p>
+					<p>Si no solicitaste este código, puedes ignorar este mensaje.</p>
+					<p><strong>Importante:</strong> No compartas este código con nadie.</p>
+				</body>
+			</html>
+		`;
+		sendSmtpEmail.sender = {
+			email: process.env.BREVO_SENDER_EMAIL!,
+			name: 'Sistema de Recuperación',
+		};
+		sendSmtpEmail.to = [{ email }];
+		sendSmtpEmail.headers = {
+			'X-Entity-Ref-ID': 'password-reset'
+		};
+
+		try {
+			const response = await this.apiInstance.sendTransacEmail(sendSmtpEmail);
+			this.logger.log(`Se ha enviado un código de recuperación a ${email}`);
+			return { message: 'Código de recuperación enviado' };
+		} catch (error) {
+			this.logger.error(`Error enviando el código de recuperación a ${email}: ${error.message}`);
+			throw new BadRequestException('Error enviando el código de recuperación');
+		}
 	}
 }
 

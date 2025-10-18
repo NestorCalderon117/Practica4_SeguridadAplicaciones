@@ -81,6 +81,28 @@ export class UsersService {
 		});
 	}
 
+	async markResetCodeAsVerified(usuarioId: string): Promise<void> {
+		await this.prisma.usuario.update({
+			where: { id: usuarioId },
+			data: {
+				codigoRecuperacionVerificado: true,
+			},
+		});
+	}
+
+	async updatePassword(usuarioId: string, nuevaContraseniaHash: string): Promise<void> {
+		await this.prisma.usuario.update({
+			where: { id: usuarioId },
+			data: {
+				contraseniaHash: nuevaContraseniaHash,
+				mfaToken: null,
+				mfaTokenExpiraEn: null,
+				codigoRecuperacionVerificado: false, // Resetear solo el flag de recuperación
+				correoVerificado: true, // Marcar correo como verificado al cambiar contraseña
+			},
+		});
+	}
+
 	private isUniqueViolation(error: unknown, constraint: string): boolean {
 		const e = error as Prisma.PrismaClientKnownRequestError;
 		return e?.code === 'P2002' && Array.isArray((e as any).meta?.target) && (e as any).meta?.target.includes('correo');

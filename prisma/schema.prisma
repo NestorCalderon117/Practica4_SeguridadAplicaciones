@@ -19,18 +19,19 @@ enum Rol {
 }
 
 model Usuario {
-  id               String    @id @default(uuid())
-  nombre           String
-  apellido         String
-  correo           String    @unique
-  contraseniaHash  String
-  rol              Rol       @default(CLIENTE)
-  estaActivo       Boolean   @default(true)
-  intentosFallidos Int       @default(0)
-  bloqueadoHasta   DateTime?
-  mfaToken         String?
-  mfaTokenExpiraEn DateTime?
-  correoVerificado Boolean   @default(false)
-  creado           DateTime  @default(now())
-  actualizado      DateTime  @updatedAt
+  id                        String    @id @default(uuid())
+  nombre                    String
+  apellido                  String
+  correo                    String    @unique
+  contraseniaHash           String
+  rol                       Rol       @default(CLIENTE)
+  estaActivo                Boolean   @default(true)
+  intentosFallidos          Int       @default(0)
+  bloqueadoHasta            DateTime?
+  mfaToken                  String?
+  mfaTokenExpiraEn          DateTime?
+  correoVerificado          Boolean   @default(false)
+  codigoRecuperacionVerificado Boolean @default(false)
+  creado                    DateTime  @default(now())
+  actualizado               DateTime  @updatedAt
 }
