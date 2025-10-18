@@ -7,6 +7,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
 import { MiCuentaModule } from './mi-cuenta/mi-cuenta.module';
+import { TicketsModule } from './tickets/tickets.module';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 
 @Module({
@@ -21,6 +22,7 @@ import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
     UsersModule,
     AuthModule,
     MiCuentaModule,
+    TicketsModule,
   ],
   controllers: [AppController],
   providers: [

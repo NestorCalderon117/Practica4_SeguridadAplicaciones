@@ -18,6 +18,21 @@ enum Rol {
   ADMIN
 }
 
+enum EstadoTicket {
+  ABIERTO
+  EN_PROGRESO
+  CERRADO
+  CANCELADO
+}
+
+enum CategoriaTicket {
+  TECNICO
+  FACTURACION
+  GENERAL
+  BUG_REPORT
+  FEATURE_REQUEST
+}
+
 model Usuario {
   id                        String    @id @default(uuid())
   nombre                    String
@@ -40,6 +55,9 @@ model Usuario {
   historialContrasenias     HistorialContrasenia[]
   historialActividad        HistorialActividad[]
   dispositivosMfa           DispositivoMfa[]
+  
+  // Relaciones para el módulo Tickets
+  tickets                   Ticket[]
 }
 
 model SesionUsuario {
@@ -97,4 +115,21 @@ model DispositivoMfa {
   usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
 
   @@map("dispositivos_mfa")
+}
+
+model Ticket {
+  id          String         @id @default(uuid())
+  titulo      String
+  descripcion String?
+  categoria   CategoriaTicket @default(GENERAL)
+  estado      EstadoTicket   @default(ABIERTO)
+  prioridad   Int            @default(3) // 1=Alta, 2=Media, 3=Baja
+  usuarioId   String
+  creado      DateTime       @default(now())
+  actualizado DateTime       @updatedAt
+  cerrado     DateTime?
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@map("tickets")
 }
